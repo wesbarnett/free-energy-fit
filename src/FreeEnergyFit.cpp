@@ -133,7 +133,7 @@ double FreeEnergyFit::GetHfit(double T)
     return GetGfit(T) + GetTSfit(T);
 }
 
-double FreeEnergyFit::dchi2(double T, int i)
+double FreeEnergyFit::ddchi2(double T, int i)
 {
     // dalpha/dchi2
     if (i == 0)
@@ -157,7 +157,7 @@ double FreeEnergyFit::calcf(double alpha, double beta, double gamma, int j)
     double sum = 0.0;
     for (unsigned int i = 0; i < this->T.size(); i++)
     {
-        sum += (this->Gdata[i] - this->CalcGfit(alpha, beta, gamma, this->T[i]) )*this->dchi2(T[i], j);
+        sum += (this->Gdata[i] - this->CalcGfit(alpha, beta, gamma, this->T[i]) )*this->ddchi2(T[i], j);
     }
     return sum;
 }

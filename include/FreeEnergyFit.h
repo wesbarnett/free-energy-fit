@@ -21,7 +21,7 @@ class FreeEnergyFit
         vector <double> fit;
         vector <double> T;
         double calcf(double alpha, double beta, double gamma, int i);
-        double dchi2(double T, int i);
+        double ddchi2(double T, int i);
         double alpha;
         double beta;
         double gamma;
