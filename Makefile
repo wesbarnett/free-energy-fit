@@ -10,6 +10,7 @@ all:
 
 install:
 	install -Dm755 bin/* -t $(DESTDIR)$(PREFIX)/bin/
+	install -Dm755 include/* -t $(DESTDIR)$(PREFIX)/include/
 
 clean:
 	rm -r bin
