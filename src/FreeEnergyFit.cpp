@@ -21,12 +21,12 @@ FreeEnergyFit::FreeEnergyFit(vector <double> &lambda, double T0, vector <double>
     // Needed for LAPACK functions
     int N = lambda.size();
     int N2 = 1;
-    int M = 3;
-    int K = 3;
+    int M = N;
+    int K = N;
     char TRANS = 'N';
     double ALPHA = 1.0;
-    int LDA = 3;
-    int LDB = 3;
+    int LDA = N;
+    int LDB = N;
     double BETA = 0.0;
     int LDC = 3;
     int *IPIV = new int[N];
@@ -41,6 +41,7 @@ FreeEnergyFit::FreeEnergyFit(vector <double> &lambda, double T0, vector <double>
     double d = stepsize;
     const double eps = tol;
     double sqrtf2;
+    int k = 0;
 
     /* Initial guesses*/
     for (int i = 0; i < x.size(); i++)
@@ -59,27 +60,26 @@ FreeEnergyFit::FreeEnergyFit(vector <double> &lambda, double T0, vector <double>
         /* Forward difference approximation for derivatives */
         /* LAPACK expects the matrix as a 1-D array in column-major order, so
          * that's what we do here */
-        // Col 1
-        lambda[0] = x[0] + d;
-        lambda[1] = x[1];
-        lambda[2] = x[2];
-        F_prime[0] = ( this->calcf(lambda, 0) - f[0] ) / d; // df0/dx0
-        F_prime[1] = ( this->calcf(lambda, 1) - f[1] ) / d; // df1/dx0
-        F_prime[2] = ( this->calcf(lambda, 2) - f[2] ) / d; // df2/dx0
-        // Col 2
-        lambda[0] = x[0];
-        lambda[1] = x[1] + d;
-        lambda[2] = x[2];
-        F_prime[3] = ( this->calcf(lambda, 0) - f[0] ) / d; // df0/dx1
-        F_prime[4] = ( this->calcf(lambda, 1) - f[1] ) / d; // df1/dx1
-        F_prime[5] = ( this->calcf(lambda, 2) - f[2] ) / d; // df2/dx1
-        // Col 3
-        lambda[0] = x[0];
-        lambda[1] = x[1];
-        lambda[2] = x[2] + d;
-        F_prime[6] = ( this->calcf(lambda, 0) - f[0] ) / d; // df0/dx2
-        F_prime[7] = ( this->calcf(lambda, 1) - f[1] ) / d; // df0/dx2
-        F_prime[8] = ( this->calcf(lambda, 2) - f[2] ) / d; // df0/dx2
+        int index = 0;
+        for (int col = 0; col < N; col++)
+        {
+            for (int j = 0; j < N; j++)
+            {
+                if (j == col)
+                {
+                    lambda[j] = x[j] + d;
+                }
+                else
+                {
+                    lambda[j] = x[j];
+                }
+            }
+            for (int row = 0; row < N; row++)
+            {
+                F_prime[index+row] = ( this->calcf(lambda, row) - f[row] ) / d;
+            }
+            index += N;
+        }
 
         dgetrf_(&N, &N, F_prime, &N, IPIV, &INFO);
         dgetri_(&N, F_prime, &N, IPIV, WORK, &LWORK, &INFO);
@@ -87,7 +87,7 @@ FreeEnergyFit::FreeEnergyFit(vector <double> &lambda, double T0, vector <double>
         /* F_prime matrix is now inverted and will now perform matrix
          * multiplication. */
 
-        for (int j = 0; j < 9; j++)
+        for (int j = 0; j < N*N; j++)
         {
             F_prime[j] *= -1.0;
         }
@@ -104,7 +104,12 @@ FreeEnergyFit::FreeEnergyFit(vector <double> &lambda, double T0, vector <double>
             f[j] = this->calcf(x, j);
         }
 
-        sqrtf2 = sqrt(f[0]*f[0] + f[1]*f[1] + f[2]*f[2]);
+        double f2sum = 0.0;
+        for (int j = 0; j < N; j++)
+        {
+            f2sum += f[j]*f[j];
+        }
+        sqrtf2 = sqrt(f2sum);
 
         if (sqrtf2 < eps)
         {
