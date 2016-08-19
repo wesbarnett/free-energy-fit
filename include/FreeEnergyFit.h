@@ -20,9 +20,8 @@ class FreeEnergyFit
         vector <double> Gdata;
         vector <double> fit;
         vector <double> T;
-        double f0(double alpha, double beta, double gamma);
-        double f1(double alpha, double beta, double gamma);
-        double f2(double alpha, double beta, double gamma);
+        double calcf(double alpha, double beta, double gamma, int i);
+        double dchi2(double T, int i);
         double alpha;
         double beta;
         double gamma;

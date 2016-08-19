@@ -92,32 +92,28 @@ double FreeEnergyFit::CalcGfit(double alpha, double beta, double gamma, double T
     return alpha + beta*(T-this->T0) + gamma*T*log(T/this->T0);
 }
 
-double FreeEnergyFit::f0(double alpha, double beta, double gamma)
+double FreeEnergyFit::dchi2(double T, int i)
+{
+    if (i == 0)
+    {
+        return 1;
+    }
+    else if (i == 1)
+    {
+        return (T-this->T0);
+    }
+    else if (i == 2)
+    {
+        return log(T/this->T0);
+    }
+}
+
+double FreeEnergyFit::calcf(double alpha, double beta, double gamma, int j)
 {
     double sum = 0.0;
     for (unsigned int i = 0; i < this->T.size(); i++)
     {
-        sum += (this->Gdata[i] - this->CalcGfit(alpha, beta, gamma, this->T[i]));
-    }
-    return sum;
-}
-
-double FreeEnergyFit::f1(double alpha, double beta, double gamma)
-{
-    double sum = 0.0;
-    for (unsigned int i = 0; i < this->T.size(); i++)
-    {
-        sum += (this->Gdata[i] - this->CalcGfit(alpha, beta, gamma, this->T[i]) )*(this->T[i]-this->T0);
-    }
-    return sum;
-}
-
-double FreeEnergyFit::f2(double alpha, double beta, double gamma)
-{
-    double sum = 0.0;
-    for (unsigned int i = 0; i < T.size(); i++)
-    {
-        sum += (this->Gdata[i] - this->CalcGfit(alpha, beta, gamma, this->T[i]) )*log(this->T[i]/this->T0);
+        sum += (this->Gdata[i] - this->CalcGfit(alpha, beta, gamma, this->T[i]) )*this->dchi2(T[i], j);
     }
     return sum;
 }
@@ -165,9 +161,9 @@ FreeEnergyFit::FreeEnergyFit(double alpha, double beta, double gamma, double T0,
     x[1] = beta;
     x[2] = gamma;
 
-    f[0] = this->f0(x[0], x[1], x[2]);
-    f[1] = this->f1(x[0], x[1], x[2]);
-    f[2] = this->f2(x[0], x[1], x[2]);
+    f[0] = this->calcf(x[0], x[1], x[2], 0);
+    f[1] = this->calcf(x[0], x[1], x[2], 1);
+    f[2] = this->calcf(x[0], x[1], x[2], 2);
 
     for (int i = 0; i < max_iter; i++)
     {
@@ -175,18 +171,18 @@ FreeEnergyFit::FreeEnergyFit(double alpha, double beta, double gamma, double T0,
         /* Forward difference approximation for derivatives */
         /* LAPACK expects the matrix as a 1-D array in column-major order, so
          * that's what we do here */
-		// Col 1
-        F_prime[0] = ( this->f0(x[0] + d, x[1],     x[2]      ) - f[0] ) / d; // df0/dx0
-        F_prime[1] = ( this->f1(x[0] + d, x[1],     x[2]      ) - f[1] ) / d; // df1/dx0
-        F_prime[2] = ( this->f2(x[0] + d, x[1],     x[2]      ) - f[2] ) / d; // df2/dx0
-		// Col 2
-        F_prime[3] = ( this->f0(x[0],     x[1] + d, x[2]      ) - f[0] ) / d; // df0/dx1
-        F_prime[4] = ( this->f1(x[0],     x[1] + d, x[2]      ) - f[1] ) / d; // df1/dx1
-        F_prime[5] = ( this->f2(x[0],     x[1] + d, x[2]      ) - f[2] ) / d; // df2/dx1
-		// Col 
-        F_prime[6] = ( this->f0(x[0],     x[1],     x[2] + d  ) - f[0] ) / d; // df0/dx2
-        F_prime[7] = ( this->f1(x[0],     x[1],     x[2] + d  ) - f[1] ) / d; // df0/dx2
-        F_prime[8] = ( this->f2(x[0],     x[1],     x[2] + d  ) - f[2] ) / d; // df0/dx2
+        // Col 1
+        F_prime[0] = ( this->calcf(x[0] + d, x[1],     x[2],     0) - f[0] ) / d; // df0/dx0
+        F_prime[1] = ( this->calcf(x[0] + d, x[1],     x[2],     1) - f[1] ) / d; // df1/dx0
+        F_prime[2] = ( this->calcf(x[0] + d, x[1],     x[2],     2) - f[2] ) / d; // df2/dx0
+        // Col 2
+        F_prime[3] = ( this->calcf(x[0],     x[1] + d, x[2],     0) - f[0] ) / d; // df0/dx1
+        F_prime[4] = ( this->calcf(x[0],     x[1] + d, x[2],     1) - f[1] ) / d; // df1/dx1
+        F_prime[5] = ( this->calcf(x[0],     x[1] + d, x[2],     2) - f[2] ) / d; // df2/dx1
+        // Col 
+        F_prime[6] = ( this->calcf(x[0],     x[1],     x[2] + d, 0) - f[0] ) / d; // df0/dx2
+        F_prime[7] = ( this->calcf(x[0],     x[1],     x[2] + d, 1) - f[1] ) / d; // df0/dx2
+        F_prime[8] = ( this->calcf(x[0],     x[1],     x[2] + d, 2) - f[2] ) / d; // df0/dx2
 
         dgetrf_(&N, &N, F_prime, &N, IPIV, &INFO);
         dgetri_(&N, F_prime, &N, IPIV, WORK, &LWORK, &INFO);
@@ -194,10 +190,10 @@ FreeEnergyFit::FreeEnergyFit(double alpha, double beta, double gamma, double T0,
         /* F_prime matrix is now inverted and will now perform matrix
          * multiplication. */
 
-		for (int j = 0; j < 9; j++)
-		{
-			F_prime[j] *= -1.0;
-		}
+        for (int j = 0; j < 9; j++)
+        {
+            F_prime[j] *= -1.0;
+        }
 
         dgemm_(&TRANS, &TRANS, &M, &N2, &K, &ALPHA, F_prime, &LDA, f, &LDB, &BETA, dx, &LDC);
    
@@ -205,9 +201,9 @@ FreeEnergyFit::FreeEnergyFit(double alpha, double beta, double gamma, double T0,
         x[1] += dx[1];
         x[2] += dx[2];
 
-        f[0] = this->f0(x[0], x[1], x[2]);
-        f[1] = this->f1(x[0], x[1], x[2]);
-        f[2] = this->f2(x[0], x[1], x[2]);
+        f[0] = this->calcf(x[0], x[1], x[2], 0);
+        f[1] = this->calcf(x[0], x[1], x[2], 1);
+        f[2] = this->calcf(x[0], x[1], x[2], 2);
 
         sqrtf2 = sqrt(f[0]*f[0] + f[1]*f[1] + f[2]*f[2]);
 
