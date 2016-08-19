@@ -1,7 +1,7 @@
 
 #include "FreeEnergyFit.h"
 
-FreeEnergyFit::FreeEnergyFit(double alpha, double beta, double gamma, double T0, vector <double> &T, vector <double> &G, int max_iter, double stepsize, double tol)
+FreeEnergyFit::FreeEnergyFit(vector <double> &lambda, double T0, vector <double> &T, vector <double> &G, int max_iter, double stepsize, double tol)
 {
 
     this->T0 = T0;
@@ -12,20 +12,14 @@ FreeEnergyFit::FreeEnergyFit(double alpha, double beta, double gamma, double T0,
     this->max_iter = max_iter;
     this->tol = tol;
     this->converged = false;
-    this->alpha_init = alpha;
-    this->beta_init = beta;
-    this->gamma_init = gamma;
-
-    double f[3];
-    double dx[3];
-    double x[3];
-    double F_prime[9];
-    double d = stepsize;
-    const double eps = tol;
-    double sqrtf2;
+    for (int i = 0; i < lambda.size(); i++)
+    {
+        this->lambda_init.push_back(lambda[i]);
+    }
+    this->lambda.resize(lambda.size());
 
     // Needed for LAPACK functions
-    int N = 3;
+    int N = lambda.size();
     int N2 = 1;
     int M = 3;
     int K = 3;
@@ -40,14 +34,24 @@ FreeEnergyFit::FreeEnergyFit(double alpha, double beta, double gamma, double T0,
     double *WORK = new double[LWORK];
     int INFO;
 
-    /* Initial guesses*/
-    x[0] = alpha;
-    x[1] = beta;
-    x[2] = gamma;
+    double f[N];
+    double dx[N];
+    vector <double> x(N);
+    double F_prime[N*N];
+    double d = stepsize;
+    const double eps = tol;
+    double sqrtf2;
 
-    f[0] = this->calcf(x[0], x[1], x[2], 0);
-    f[1] = this->calcf(x[0], x[1], x[2], 1);
-    f[2] = this->calcf(x[0], x[1], x[2], 2);
+    /* Initial guesses*/
+    for (int i = 0; i < x.size(); i++)
+    {
+        x[i] = lambda[i];
+    }
+
+    for (int i = 0; i < x.size(); i++)
+    {
+        f[i] = this->calcf(x, i);
+    }
 
     for (int i = 0; i < max_iter; i++)
     {
@@ -56,17 +60,26 @@ FreeEnergyFit::FreeEnergyFit(double alpha, double beta, double gamma, double T0,
         /* LAPACK expects the matrix as a 1-D array in column-major order, so
          * that's what we do here */
         // Col 1
-        F_prime[0] = ( this->calcf(x[0] + d, x[1],     x[2],     0) - f[0] ) / d; // df0/dx0
-        F_prime[1] = ( this->calcf(x[0] + d, x[1],     x[2],     1) - f[1] ) / d; // df1/dx0
-        F_prime[2] = ( this->calcf(x[0] + d, x[1],     x[2],     2) - f[2] ) / d; // df2/dx0
+        lambda[0] = x[0] + d;
+        lambda[1] = x[1];
+        lambda[2] = x[2];
+        F_prime[0] = ( this->calcf(lambda, 0) - f[0] ) / d; // df0/dx0
+        F_prime[1] = ( this->calcf(lambda, 1) - f[1] ) / d; // df1/dx0
+        F_prime[2] = ( this->calcf(lambda, 2) - f[2] ) / d; // df2/dx0
         // Col 2
-        F_prime[3] = ( this->calcf(x[0],     x[1] + d, x[2],     0) - f[0] ) / d; // df0/dx1
-        F_prime[4] = ( this->calcf(x[0],     x[1] + d, x[2],     1) - f[1] ) / d; // df1/dx1
-        F_prime[5] = ( this->calcf(x[0],     x[1] + d, x[2],     2) - f[2] ) / d; // df2/dx1
+        lambda[0] = x[0];
+        lambda[1] = x[1] + d;
+        lambda[2] = x[2];
+        F_prime[3] = ( this->calcf(lambda, 0) - f[0] ) / d; // df0/dx1
+        F_prime[4] = ( this->calcf(lambda, 1) - f[1] ) / d; // df1/dx1
+        F_prime[5] = ( this->calcf(lambda, 2) - f[2] ) / d; // df2/dx1
         // Col 3
-        F_prime[6] = ( this->calcf(x[0],     x[1],     x[2] + d, 0) - f[0] ) / d; // df0/dx2
-        F_prime[7] = ( this->calcf(x[0],     x[1],     x[2] + d, 1) - f[1] ) / d; // df0/dx2
-        F_prime[8] = ( this->calcf(x[0],     x[1],     x[2] + d, 2) - f[2] ) / d; // df0/dx2
+        lambda[0] = x[0];
+        lambda[1] = x[1];
+        lambda[2] = x[2] + d;
+        F_prime[6] = ( this->calcf(lambda, 0) - f[0] ) / d; // df0/dx2
+        F_prime[7] = ( this->calcf(lambda, 1) - f[1] ) / d; // df0/dx2
+        F_prime[8] = ( this->calcf(lambda, 2) - f[2] ) / d; // df0/dx2
 
         dgetrf_(&N, &N, F_prime, &N, IPIV, &INFO);
         dgetri_(&N, F_prime, &N, IPIV, WORK, &LWORK, &INFO);
@@ -81,13 +94,15 @@ FreeEnergyFit::FreeEnergyFit(double alpha, double beta, double gamma, double T0,
 
         dgemm_(&TRANS, &TRANS, &M, &N2, &K, &ALPHA, F_prime, &LDA, f, &LDB, &BETA, dx, &LDC);
    
-        x[0] += dx[0];
-        x[1] += dx[1];
-        x[2] += dx[2];
+        for (int j = 0; j < x.size(); j++)
+        {
+            x.at(j) += dx[j];
+        }
 
-        f[0] = this->calcf(x[0], x[1], x[2], 0);
-        f[1] = this->calcf(x[0], x[1], x[2], 1);
-        f[2] = this->calcf(x[0], x[1], x[2], 2);
+        for (int j = 0; j < x.size(); j++)
+        {
+            f[j] = this->calcf(x, j);
+        }
 
         sqrtf2 = sqrt(f[0]*f[0] + f[1]*f[1] + f[2]*f[2]);
 
@@ -101,31 +116,32 @@ FreeEnergyFit::FreeEnergyFit(double alpha, double beta, double gamma, double T0,
 
     delete IPIV;
     delete WORK;
-    this->alpha = x[0];
-    this->beta = x[1];
-    this->gamma = x[2];
+    for (int i = 0; i < N; i++)
+    {
+        this->lambda.at(i) = x.at(i);
+    }
     for (unsigned int i = 0; i < T.size(); i++)
     {
-        chi2 += pow((this->Gdata[i] - this->CalcGfit(this->alpha, this->beta, this->gamma, this->T[i])),2);
+        this->chi2 += pow((this->Gdata.at(i) - this->CalcGfit(this->lambda, this->T.at(i))),2);
     }
     return;
 
 }
 
-double FreeEnergyFit::CalcGfit(double alpha, double beta, double gamma, double T)
+double FreeEnergyFit::CalcGfit(vector <double> &lambda, double T)
 {
 
-    return alpha + beta*(T-this->T0) + gamma*T*log(T/this->T0);
+    return lambda.at(0) + lambda.at(1)*(T-this->T0) + lambda.at(2)*T*log(T/this->T0);
 }
 
 double FreeEnergyFit::GetGfit(double T)
 {
-    return CalcGfit(this->alpha, this->beta, this->gamma, T);
+    return CalcGfit(this->lambda, T);
 }
 
 double FreeEnergyFit::GetTSfit(double T)
 {
-    return -T*( this->beta + this->gamma*( 1 + log(T/this->T0) ) );
+    return -T*( this->lambda[1] + this->lambda[2]*( 1 + log(T/this->T0) ) );
 }
 
 double FreeEnergyFit::GetHfit(double T)
@@ -152,44 +168,24 @@ double FreeEnergyFit::ddchi2(double T, int i)
     }
 }
 
-double FreeEnergyFit::calcf(double alpha, double beta, double gamma, int j)
+double FreeEnergyFit::calcf(vector <double> &lambda, int j)
 {
     double sum = 0.0;
     for (unsigned int i = 0; i < this->T.size(); i++)
     {
-        sum += (this->Gdata[i] - this->CalcGfit(alpha, beta, gamma, this->T[i]) )*this->ddchi2(T[i], j);
+        sum += (this->Gdata.at(i) - this->CalcGfit(lambda, this->T.at(i)) )*this->ddchi2(T.at(i), j);
     }
     return sum;
 }
 
-double FreeEnergyFit::GetAlpha()
+double FreeEnergyFit::GetLambda(int i)
 {
-    return this->alpha;
+    return this->lambda[i];
 }
 
-double FreeEnergyFit::GetBeta()
+double FreeEnergyFit::GetLambdaGuess(int i)
 {
-    return this->beta;
-}
-
-double FreeEnergyFit::GetGamma()
-{
-    return this->gamma;
-}
-
-double FreeEnergyFit::GetAlphaGuess()
-{
-    return this->alpha_init;
-}
-
-double FreeEnergyFit::GetBetaGuess()
-{
-    return this->beta_init;
-}
-
-double FreeEnergyFit::GetGammaGuess()
-{
-    return this->gamma_init;
+    return this->lambda_init[i];
 }
 
 double FreeEnergyFit::GetChi2()
@@ -212,11 +208,6 @@ double FreeEnergyFit::GetTolerance()
     return this->tol;
 }
 
-double FreeEnergyFit::GetT0()
-{
-    return this->T0;
-}
-
 bool FreeEnergyFit::IsConverged()
 {
     return this->converged;
@@ -232,3 +223,7 @@ double FreeEnergyFit::GetT(int i)
     return this->T[i];
 }
 
+double FreeEnergyFit::GetT0()
+{
+    return this->T0;
+}

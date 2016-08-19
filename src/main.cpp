@@ -85,7 +85,11 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    FreeEnergyFit fit(alpha_init, beta_init, gamma_init, T0, T, G, maxiter, stepsize, tol);
+    vector <double> x(3);
+    x[0] = alpha_init;
+    x[1] = beta_init;
+    x[2] = gamma_init;
+    FreeEnergyFit fit(x, T0, T, G, maxiter, stepsize, tol);
 
     ofstream oFS;
     oFS << scientific << setprecision(6);
@@ -106,13 +110,13 @@ int main(int argc, char *argv[])
         oFS << "# WARNING: Fit did not converge." << endl;
     }
     oFS << "# Initial guesses: " << endl;
-    oFS << "#   alpha   = " << fit.GetAlphaGuess() << endl;
-    oFS << "#   beta    = " << fit.GetBetaGuess() << endl;
-    oFS << "#   gamma   = " << fit.GetGammaGuess() << endl;
+    oFS << "#   alpha   = " << fit.GetLambdaGuess(0) << endl;
+    oFS << "#   beta    = " << fit.GetLambdaGuess(1) << endl;
+    oFS << "#   gamma   = " << fit.GetLambdaGuess(2) << endl;
     oFS << "# Fitted parameters: " << endl;
-    oFS << "#   alpha   = " << fit.GetAlpha() << endl;
-    oFS << "#   beta    = " << fit.GetBeta() << endl;
-    oFS << "#   gamma   = " << fit.GetGamma()<< endl;
+    oFS << "#   alpha   = " << fit.GetLambda(0) << endl;
+    oFS << "#   beta    = " << fit.GetLambda(1) << endl;
+    oFS << "#   gamma   = " << fit.GetLambda(2)<< endl;
     oFS << "#   chi2    = " << fit.GetChi2() << endl;
     oFS << "#";
     oFS << setw(20) << "T (K) ";
