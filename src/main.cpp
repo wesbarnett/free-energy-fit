@@ -90,6 +90,7 @@ int main(int argc, char *argv[])
     x[1] = beta_init;
     x[2] = gamma_init;
     FreeEnergyFit fit(x, T0, T, G, maxiter, stepsize, tol);
+    fit.DoFit();
 
     ofstream oFS;
     oFS << scientific << setprecision(6);

@@ -5,8 +5,8 @@ FreeEnergyFit::FreeEnergyFit(vector <double> &lambda, double T0, vector <double>
 {
 
     this->T0 = T0;
-    this->T = T;
-    this->Gdata = G;
+    this->xdata = T;
+    this->ydata = G;
     this->chi2 = 0.0;
     this->stepsize = stepsize;
     this->max_iter = max_iter;
@@ -17,9 +17,13 @@ FreeEnergyFit::FreeEnergyFit(vector <double> &lambda, double T0, vector <double>
         this->lambda_init.push_back(lambda[i]);
     }
     this->lambda.resize(lambda.size());
+    return;
+}
 
+void FreeEnergyFit::DoFit()
+{
     // Needed for LAPACK functions
-    int N = lambda.size();
+    int N = this->lambda_init.size();
     int N2 = 1;
     int M = N;
     int K = N;
@@ -28,7 +32,7 @@ FreeEnergyFit::FreeEnergyFit(vector <double> &lambda, double T0, vector <double>
     int LDA = N;
     int LDB = N;
     double BETA = 0.0;
-    int LDC = 3;
+    int LDC = N;
     int *IPIV = new int[N];
     int LWORK = N*N;
     double *WORK = new double[LWORK];
@@ -37,6 +41,7 @@ FreeEnergyFit::FreeEnergyFit(vector <double> &lambda, double T0, vector <double>
     double f[N];
     double dx[N];
     vector <double> x(N);
+    vector <double> xtmp(N);
     double F_prime[N*N];
     double d = stepsize;
     const double eps = tol;
@@ -46,7 +51,7 @@ FreeEnergyFit::FreeEnergyFit(vector <double> &lambda, double T0, vector <double>
     /* Initial guesses*/
     for (int i = 0; i < x.size(); i++)
     {
-        x[i] = lambda[i];
+        x[i] = this->lambda_init[i];
     }
 
     for (int i = 0; i < x.size(); i++)
@@ -67,16 +72,16 @@ FreeEnergyFit::FreeEnergyFit(vector <double> &lambda, double T0, vector <double>
             {
                 if (j == col)
                 {
-                    lambda[j] = x[j] + d;
+                    xtmp[j] = x[j] + d;
                 }
                 else
                 {
-                    lambda[j] = x[j];
+                    xtmp[j] = x[j];
                 }
             }
             for (int row = 0; row < N; row++)
             {
-                F_prime[index+row] = ( this->calcf(lambda, row) - f[row] ) / d;
+                F_prime[index+row] = ( this->calcf(xtmp, row) - f[row] ) / d;
             }
             index += N;
         }
@@ -125,15 +130,15 @@ FreeEnergyFit::FreeEnergyFit(vector <double> &lambda, double T0, vector <double>
     {
         this->lambda.at(i) = x.at(i);
     }
-    for (unsigned int i = 0; i < T.size(); i++)
+    for (unsigned int i = 0; i < this->xdata.size(); i++)
     {
-        this->chi2 += pow((this->Gdata.at(i) - this->CalcGfit(this->lambda, this->T.at(i))),2);
+        this->chi2 += pow((this->ydata.at(i) - this->CalcFit(this->lambda, this->xdata.at(i))),2);
     }
     return;
 
 }
 
-double FreeEnergyFit::CalcGfit(vector <double> &lambda, double T)
+double FreeEnergyFit::CalcFit(vector <double> &lambda, double T)
 {
 
     return lambda.at(0) + lambda.at(1)*(T-this->T0) + lambda.at(2)*T*log(T/this->T0);
@@ -141,7 +146,7 @@ double FreeEnergyFit::CalcGfit(vector <double> &lambda, double T)
 
 double FreeEnergyFit::GetGfit(double T)
 {
-    return CalcGfit(this->lambda, T);
+    return CalcFit(this->lambda, T);
 }
 
 double FreeEnergyFit::GetTSfit(double T)
@@ -176,9 +181,9 @@ double FreeEnergyFit::ddchi2(double T, int i)
 double FreeEnergyFit::calcf(vector <double> &lambda, int j)
 {
     double sum = 0.0;
-    for (unsigned int i = 0; i < this->T.size(); i++)
+    for (unsigned int i = 0; i < this->xdata.size(); i++)
     {
-        sum += (this->Gdata.at(i) - this->CalcGfit(lambda, this->T.at(i)) )*this->ddchi2(T.at(i), j);
+        sum += (this->ydata.at(i) - this->CalcFit(lambda, this->xdata.at(i)) )*this->ddchi2(xdata.at(i), j);
     }
     return sum;
 }
@@ -220,12 +225,12 @@ bool FreeEnergyFit::IsConverged()
 
 double FreeEnergyFit::GetGdata(int i)
 {
-    return this->Gdata[i];
+    return this->ydata[i];
 }
 
 double FreeEnergyFit::GetT(int i)
 {
-    return this->T[i];
+    return this->xdata[i];
 }
 
 double FreeEnergyFit::GetT0()
