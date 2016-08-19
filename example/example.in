@@ -1,0 +1,44 @@
+[ fit ]
+maxiter         = 10000000
+stepsize        = 1e-4
+tol             = 1e-6
+alpha           = -26
+beta            = 1
+gamma           = -2
+
+[ units ]
+in              = kcal
+out             = kcal
+
+[ data ]
+n               = 13
+refT            = 25
+T1              = 5
+T2              = 10
+T3              = 15
+T4              = 20
+T5              = 25
+T6              = 30
+T7              = 35
+T8              = 40
+T9              = 45
+T10             = 50
+T11             = 55
+T12             = 60
+T13             = 65
+G1              = 1.625
+G2              = 1.724
+G3              = 1.827
+G4              = 1.926
+G5              = 2.004
+G6              = 2.038
+G7              = 2.140
+G8              = 2.198
+G9              = 2.251
+G10             = 2.319
+G11             = 2.374
+G12             = 2.439
+G13             = 2.495
+
+[ output ]
+file            = example.dat
