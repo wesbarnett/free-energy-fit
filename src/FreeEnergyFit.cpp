@@ -20,133 +20,10 @@ FreeEnergyFit::FreeEnergyFit(vector <double> &lambda, double T0, vector <double>
     return;
 }
 
-void FreeEnergyFit::DoFit()
-{
-    // Needed for LAPACK functions
-    int N = this->lambda_init.size();
-    int N2 = 1;
-    int M = N;
-    int K = N;
-    char TRANS = 'N';
-    double ALPHA = 1.0;
-    int LDA = N;
-    int LDB = N;
-    double BETA = 0.0;
-    int LDC = N;
-    int *IPIV = new int[N];
-    int LWORK = N*N;
-    double *WORK = new double[LWORK];
-    int INFO;
-
-    double f[N];
-    double dx[N];
-    vector <double> x(N);
-    vector <double> xtmp(N);
-    double F_prime[N*N];
-    double d = stepsize;
-    const double eps = tol;
-    double sqrtf2;
-    int k = 0;
-
-    /* Initial guesses*/
-    for (int i = 0; i < x.size(); i++)
-    {
-        x[i] = this->lambda_init[i];
-    }
-
-    for (int i = 0; i < x.size(); i++)
-    {
-        f[i] = this->calcf(x, i);
-    }
-
-    for (int i = 0; i < max_iter; i++)
-    {
-
-        /* Forward difference approximation for derivatives */
-        /* LAPACK expects the matrix as a 1-D array in column-major order, so
-         * that's what we do here */
-        int index = 0;
-        for (int col = 0; col < N; col++)
-        {
-            for (int j = 0; j < N; j++)
-            {
-                if (j == col)
-                {
-                    xtmp[j] = x[j] + d;
-                }
-                else
-                {
-                    xtmp[j] = x[j];
-                }
-            }
-            for (int row = 0; row < N; row++)
-            {
-                F_prime[index+row] = ( this->calcf(xtmp, row) - f[row] ) / d;
-            }
-            index += N;
-        }
-
-        dgetrf_(&N, &N, F_prime, &N, IPIV, &INFO);
-        dgetri_(&N, F_prime, &N, IPIV, WORK, &LWORK, &INFO);
-
-        /* F_prime matrix is now inverted and will now perform matrix
-         * multiplication. */
-
-        for (int j = 0; j < N*N; j++)
-        {
-            F_prime[j] *= -1.0;
-        }
-
-        dgemm_(&TRANS, &TRANS, &M, &N2, &K, &ALPHA, F_prime, &LDA, f, &LDB, &BETA, dx, &LDC);
-   
-        for (int j = 0; j < x.size(); j++)
-        {
-            x.at(j) += dx[j];
-        }
-
-        for (int j = 0; j < x.size(); j++)
-        {
-            f[j] = this->calcf(x, j);
-        }
-
-        double f2sum = 0.0;
-        for (int j = 0; j < N; j++)
-        {
-            f2sum += f[j]*f[j];
-        }
-        sqrtf2 = sqrt(f2sum);
-
-        if (sqrtf2 < eps)
-        {
-            this->converged = true;
-            break;
-        }
-        
-    }
-
-    delete IPIV;
-    delete WORK;
-    for (int i = 0; i < N; i++)
-    {
-        this->lambda.at(i) = x.at(i);
-    }
-    for (unsigned int i = 0; i < this->xdata.size(); i++)
-    {
-        this->chi2 += pow((this->ydata.at(i) - this->CalcFit(this->lambda, this->xdata.at(i))),2);
-    }
-    return;
-
-}
-
 double FreeEnergyFit::CalcFit(vector <double> &lambda, double T)
 {
 
     return lambda.at(0) + lambda.at(1)*(T-this->T0) + lambda.at(2)*T*log(T/this->T0);
-}
-
-double FreeEnergyFit::GetGfit(double T)
-{
-    return CalcFit(this->lambda, T);
 }
 
 double FreeEnergyFit::GetTSfit(double T)
@@ -156,7 +33,7 @@ double FreeEnergyFit::GetTSfit(double T)
 
 double FreeEnergyFit::GetHfit(double T)
 {
-    return GetGfit(T) + GetTSfit(T);
+    return GetFit(T) + GetTSfit(T);
 }
 
 double FreeEnergyFit::ddchi2(double T, int i)
@@ -176,61 +53,6 @@ double FreeEnergyFit::ddchi2(double T, int i)
     {
         return log(T/this->T0);
     }
-}
-
-double FreeEnergyFit::calcf(vector <double> &lambda, int j)
-{
-    double sum = 0.0;
-    for (unsigned int i = 0; i < this->xdata.size(); i++)
-    {
-        sum += (this->ydata.at(i) - this->CalcFit(lambda, this->xdata.at(i)) )*this->ddchi2(xdata.at(i), j);
-    }
-    return sum;
-}
-
-double FreeEnergyFit::GetLambda(int i)
-{
-    return this->lambda[i];
-}
-
-double FreeEnergyFit::GetLambdaGuess(int i)
-{
-    return this->lambda_init[i];
-}
-
-double FreeEnergyFit::GetChi2()
-{
-    return this->chi2;
-}
-
-double FreeEnergyFit::GetStepsize()
-{
-    return this->stepsize;
-}
-
-int FreeEnergyFit::GetMaxiter()
-{
-    return this->max_iter;
-}
-
-double FreeEnergyFit::GetTolerance()
-{
-    return this->tol;
-}
-
-bool FreeEnergyFit::IsConverged()
-{
-    return this->converged;
-}
-
-double FreeEnergyFit::GetGdata(int i)
-{
-    return this->ydata[i];
-}
-
-double FreeEnergyFit::GetT(int i)
-{
-    return this->xdata[i];
 }
 
 double FreeEnergyFit::GetT0()

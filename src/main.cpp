@@ -128,9 +128,9 @@ int main(int argc, char *argv[])
     oFS << endl;
     for (int i = 0; i < temps_n; i++) 
     {
-        oFS << setw(20) << fit.GetT(i);
-        oFS << setw(20) << fit.GetGdata(i)*conv;
-        oFS << setw(20) << fit.GetGfit(T[i])*conv;
+        oFS << setw(20) << fit.GetXData(i);
+        oFS << setw(20) << fit.GetYData(i)*conv;
+        oFS << setw(20) << fit.GetFit(T[i])*conv;
         oFS << setw(20) << -fit.GetTSfit(T[i])*conv;
         oFS << setw(20) << fit.GetHfit(T[i])*conv;
         oFS << endl;
