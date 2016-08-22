@@ -12,7 +12,7 @@ FreeEnergyFit::FreeEnergyFit(vector <double> &lambda, double T0, vector <double>
     this->max_iter = max_iter;
     this->tol = tol;
     this->converged = false;
-    for (int i = 0; i < lambda.size(); i++)
+    for (unsigned int i = 0; i < lambda.size(); i++)
     {
         this->lambda_init.push_back(lambda[i]);
     }
@@ -53,6 +53,7 @@ double FreeEnergyFit::ddchi2(double T, int i)
     {
         return log(T/this->T0);
     }
+    return 0;
 }
 
 double FreeEnergyFit::GetT0()

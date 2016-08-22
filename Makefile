@@ -6,7 +6,7 @@ PREFIX ?= /usr/local
 
 all:
 	mkdir -p bin
-	g++ -O2 -o bin/fefit -I./include src/* -llapack -lblas
+	g++ -O2 -o bin/fefit -I./include src/* -llapack -lblas -Wall
 
 install:
 	install -Dm755 bin/* -t $(DESTDIR)$(PREFIX)/bin/
